@@ -1,6 +1,5 @@
 """Agentic RAG Demo — Pydantic AI + Chainlit + Tavily"""
 
-import asyncio
 import logging
 import os
 
@@ -8,6 +7,7 @@ import chainlit as cl
 from pydantic_ai import Agent
 from requests.exceptions import ConnectionError
 from tavily import TavilyClient
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,18 @@ agent = Agent(
 )
 
 
+@retry(
+    retry=retry_if_exception_type(ConnectionError),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _search_with_retry(query: str) -> dict:
+    """リトライ付きで Tavily API を呼び出す。"""
+    return tavily.search(query, max_results=5)
+
+
 @agent.tool_plain
 async def search_web(query: str) -> str:
     """インターネットで情報を検索する。queryは検索キーワード（英語推奨）。"""
@@ -35,21 +47,10 @@ async def search_web(query: str) -> str:
     async with cl.Step(name=f"🔍 検索: {query}", type="tool") as step:
         step.input = query
 
-        # リトライ付きで Tavily API を呼び出す（ConnectionError 対策）
-        last_exc: Exception | None = None
-        response = None
-        for attempt in range(3):
-            try:
-                response = tavily.search(query, max_results=5)
-                break
-            except ConnectionError as exc:
-                last_exc = exc
-                logger.warning("Tavily API connection error (attempt %d/3): %s", attempt + 1, exc)
-                if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)  # 1s, 2s
-        if response is None:
+        try:
+            response = _search_with_retry(query)
+        except ConnectionError:
             step.output = "検索接続エラー"
-            logger.error("Tavily API connection failed after 3 attempts: %s", last_exc)
             return "検索サービスへの接続に失敗しました。しばらく待ってから再度お試しください。"
         results = response.get("results", [])
         if not results:
