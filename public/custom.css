@@ -1,0 +1,9 @@
+/* Chainlit ブランドロゴを非表示にする */
+img[src*="logo"] {
+    display: none !important;
+}
+
+/* ウォーターマーク非表示 */
+a[href*="chainlit.io"] {
+    display: none !important;
+}
