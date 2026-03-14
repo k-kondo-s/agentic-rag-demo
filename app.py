@@ -11,7 +11,7 @@ tavily = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
 
 # --- Pydantic AI Agent ---
 agent = Agent(
-    model="openai:gpt-5.3",
+    model="openai:gpt-5.4",
     system_prompt=(
         "あなたはインターネット検索ができるAIアシスタントです。\n"
         "ユーザーの質問に対して、必要に応じて search_web ツールを使い、"
