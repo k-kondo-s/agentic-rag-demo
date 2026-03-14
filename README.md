@@ -44,20 +44,14 @@ chainlit run app.py
 | `APP_USERNAME` | ログイン ID | 任意（デフォルト: `demo`） |
 | `APP_PASSWORD` | ログインパスワード | 任意 |
 
-## Railway デプロイ
-
-1. GitHub にリポジトリを push
-2. [Railway](https://railway.app/) で新規プロジェクト → GitHub 連携
-3. Dashboard の Variables で環境変数を設定
-4. 自動ビルド・デプロイ
-
 ## ファイル構成
 
 ```
 app.py             — メインアプリ（単一ファイルで完結）
 chainlit.md        — Welcome メッセージ
-.chainlit/         — Chainlit 設定
-requirements.txt   — 依存関係
+.chainlit/         — Chainlit 設定（テーマ・機能）
+public/            — カスタム CSS
+requirements.txt   — 依存関係（バージョン固定）
 Dockerfile         — コンテナデプロイ用
 .env.example       — 環境変数テンプレート
 ```
