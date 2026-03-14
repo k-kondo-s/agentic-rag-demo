@@ -26,21 +26,27 @@ agent = Agent(
 @agent.tool_plain
 async def search_web(query: str) -> str:
     """インターネットで情報を検索する。queryは検索キーワード（英語推奨）。"""
-    async with cl.Step(name=f"🔍 検索: {query}", type="tool") as step:
-        step.input = f"検索クエリ: `{query}`"
-        response = tavily.search(query, max_results=5)
-        results = response.get("results", [])
-        if not results:
-            step.output = "検索結果なし"
-            return "検索結果が見つかりませんでした。"
-        lines = []
-        for r in results:
-            lines.append(f"### {r['title']}")
-            lines.append(r.get("content", ""))
-            lines.append(f"URL: {r['url']}")
-            lines.append("")
-        output = "\n".join(lines)
-        step.output = f"{len(results)} 件の結果を取得"
+    # 検索開始を表示
+    step_msg = cl.Message(content=f"🔍 **検索中**: `{query}`", author="system")
+    await step_msg.send()
+
+    response = tavily.search(query, max_results=5)
+    results = response.get("results", [])
+    if not results:
+        step_msg.content = f"🔍 **検索完了**: `{query}` → 結果なし"
+        await step_msg.update()
+        return "検索結果が見つかりませんでした。"
+
+    lines = []
+    for r in results:
+        lines.append(f"### {r['title']}")
+        lines.append(r.get("content", ""))
+        lines.append(f"URL: {r['url']}")
+        lines.append("")
+    output = "\n".join(lines)
+
+    step_msg.content = f"🔍 **検索完了**: `{query}` → {len(results)} 件取得"
+    await step_msg.update()
     return output
 
 
@@ -86,14 +92,19 @@ async def on_chat_start():
 async def on_message(message: cl.Message):
     history = cl.user_session.get("history", [])
 
-    msg = cl.Message(content="")
-    await msg.send()
+    # ツール呼び出しは search_web 内で個別メッセージとして表示される
+    # 回答メッセージは最初のテキストチャンクが来てから作成（ツール表示が先に出る）
+    msg = None
 
     async with agent.run_stream(
         message.content, message_history=history
     ) as result:
         async for chunk in result.stream_text(delta=True):
+            if msg is None:
+                msg = cl.Message(content="")
+                await msg.send()
             await msg.stream_token(chunk)
 
-    await msg.update()
+    if msg:
+        await msg.update()
     cl.user_session.set("history", result.all_messages())
