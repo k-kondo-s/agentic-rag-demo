@@ -1,4 +1,4 @@
-chainlit
-pydantic-ai
-tavily-python
-httpx
+chainlit==2.10.0
+pydantic-ai==1.68.0
+tavily-python==0.7.23
+httpx==0.28.1

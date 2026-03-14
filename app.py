@@ -26,27 +26,34 @@ agent = Agent(
 @agent.tool_plain
 async def search_web(query: str) -> str:
     """インターネットで情報を検索する。queryは検索キーワード（英語推奨）。"""
-    # 検索開始を表示
-    step_msg = cl.Message(content=f"🔍 **検索中**: `{query}`", author="system")
-    await step_msg.send()
+    # 検索ステップを表示（トグルで結果を確認可能）
+    async with cl.Step(name=f"🔍 検索: {query}", type="tool") as step:
+        step.input = query
 
-    response = tavily.search(query, max_results=5)
-    results = response.get("results", [])
-    if not results:
-        step_msg.content = f"🔍 **検索完了**: `{query}` → 結果なし"
-        await step_msg.update()
-        return "検索結果が見つかりませんでした。"
+        response = tavily.search(query, max_results=5)
+        results = response.get("results", [])
+        if not results:
+            step.output = "検索結果なし"
+            return "検索結果が見つかりませんでした。"
 
-    lines = []
-    for r in results:
-        lines.append(f"### {r['title']}")
-        lines.append(r.get("content", ""))
-        lines.append(f"URL: {r['url']}")
-        lines.append("")
-    output = "\n".join(lines)
+        # LLM に渡すフル結果
+        lines = []
+        for r in results:
+            lines.append(f"### {r['title']}")
+            lines.append(r.get("content", ""))
+            lines.append(f"URL: {r['url']}")
+            lines.append("")
+        output = "\n".join(lines)
 
-    step_msg.content = f"🔍 **検索完了**: `{query}` → {len(results)} 件取得"
-    await step_msg.update()
+        # Step の output にサマリを表示（トグルで展開）
+        detail_lines = []
+        for r in results:
+            title = r.get("title", "")
+            url = r.get("url", "")
+            snippet = r.get("content", "")[:150]
+            detail_lines.append(f"- **{title}**\n  {snippet}...\n  {url}")
+        step.output = f"{len(results)} 件取得\n\n" + "\n\n".join(detail_lines)
+
     return output
 
 
@@ -70,7 +77,7 @@ async def set_starters():
         ),
         cl.Starter(
             label="最新トレンド深掘り",
-            message="2025年のAIエージェント分野の最新トレンドを調べて、特に注目すべき技術やフレームワークを3つ挙げて詳しく解説してください。",
+            message="2026年のAIエージェント分野の最新トレンドを調べて、特に注目すべき技術やフレームワークを3つ挙げて詳しく解説してください。",
         ),
         cl.Starter(
             label="技術選定リサーチ",
