@@ -1,0 +1,4 @@
+chainlit
+pydantic-ai
+tavily-python
+httpx
