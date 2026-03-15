@@ -1,0 +1,58 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#FFF8E1"
+    primaryBorderColor: "#E0C060"
+    primaryTextColor: "#333333"
+    secondaryColor: "#E8EAF6"
+    secondaryBorderColor: "#7986CB"
+    secondaryTextColor: "#333333"
+    tertiaryColor: "#FFFFFF"
+    lineColor: "#555555"
+    fontSize: 14px
+---
+flowchart TB
+    subgraph auth["認証"]
+        cognito["Amazon Cognito"]
+    end
+
+    subgraph pipeline["ドキュメント取込パイプライン"]
+        s3["Amazon S3<br/>(原本ファイル保管)"]
+        textract["Amazon Textract<br/>(OCR・構造抽出)"]
+        chunk["チャンク分割<br/>+ ベクトル化"]
+        s3 --> textract --> chunk
+    end
+
+    subgraph chatui["チャット UI（下記いずれか）"]
+        customui["自作 UI<br/>React + Next.js<br/>(AWS Amplify)"]
+        existingui["既存チャネル利用<br/>Slack / Teams Bot"]
+    end
+
+    subgraph backend_group["Backend"]
+        fargate["AWS Fargate<br/>FastAPI + Pydantic AI"]
+    end
+
+    subgraph monitoring["運用監視・品質評価"]
+        cloudwatch["Amazon CloudWatch<br/>+ AWS X-Ray<br/>(メトリクス・トレース・アラート)"]
+        ragas["RAGAS + Bedrock Evaluation<br/>(回答品質の定量評価)"]
+    end
+
+    subgraph data["データ"]
+        aurora["Amazon Aurora<br/>PostgreSQL<br/>(会話履歴・設定)"]
+    end
+
+    subgraph ai["AI サービス"]
+        llm["LLM Provider<br/>(Amazon Bedrock:<br/>Claude / Titan 等)<br/>※設定変更で切替可能"]
+        opensearch["Amazon OpenSearch<br/>Service<br/>(Hybrid: BM25 + Vector<br/>+ Reranking)"]
+    end
+
+    cognito -- "認証" --> customui
+    cognito -- "認証" --> existingui
+    customui -- "API" --> fargate
+    existingui -- "Webhook / API" --> fargate
+    fargate -- "トレース" --> cloudwatch
+    fargate --> aurora
+    fargate --> llm
+    fargate --> opensearch
+    chunk --> opensearch
